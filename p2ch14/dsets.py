@@ -48,7 +48,7 @@ def getCandidateInfoList(requireOnDisk_bool=True):
     with open('data/part2/luna/annotations_with_malignancy.csv', "r") as f:
         for row in list(csv.reader(f))[1:]:
             series_uid = row[0]
-            annotationCenter_xyz = tuple([float(x) for x in row[1:4]])
+            annotationCenter_xyz = tuple(float(x) for x in row[1:4])
             annotationDiameter_mm = float(row[4])
             isMal_bool = {'False': False, 'True': True}[row[5]]
 
@@ -62,7 +62,7 @@ def getCandidateInfoList(requireOnDisk_bool=True):
                 continue
 
             isNodule_bool = bool(int(row[4]))
-            candidateCenter_xyz = tuple([float(x) for x in row[1:4]])
+            candidateCenter_xyz = tuple(float(x) for x in row[1:4])
 
             if not isNodule_bool:
                 candidateInfo_list.append(CandidateInfoTuple(
@@ -91,7 +91,7 @@ def getCandidateInfoDict(requireOnDisk_bool=True):
 class Ct:
     def __init__(self, series_uid):
         mhd_path = glob.glob(
-            'data-unversioned/part2/luna/subset*/{}.mhd'.format(series_uid)
+            f'data-unversioned/part2/luna/subset*/{series_uid}.mhd'
         )[0]
 
         ct_mhd = sitk.ReadImage(mhd_path)
@@ -170,9 +170,8 @@ def getCtAugmentedCandidate(
     # ... <1>
 
     for i in range(3):
-        if 'flip' in augmentation_dict:
-            if random.random() > 0.5:
-                transform_t[i,i] *= -1
+        if 'flip' in augmentation_dict and random.random() > 0.5:
+            transform_t[i,i] *= -1
 
         if 'offset' in augmentation_dict:
             offset_float = augmentation_dict['offset']
@@ -244,7 +243,12 @@ class LunaDataset(Dataset):
         if series_uid:
             self.series_list = [series_uid]
         else:
-            self.series_list = sorted(set(candidateInfo_tup.series_uid for candidateInfo_tup in self.candidateInfo_list))
+            self.series_list = sorted(
+                {
+                    candidateInfo_tup.series_uid
+                    for candidateInfo_tup in self.candidateInfo_list
+                }
+            )
 
         if isValSet_bool:
             assert val_stride > 0, val_stride
@@ -261,28 +265,28 @@ class LunaDataset(Dataset):
             random.shuffle(self.candidateInfo_list)
         elif sortby_str == 'series_uid':
             self.candidateInfo_list.sort(key=lambda x: (x.series_uid, x.center_xyz))
-        elif sortby_str == 'label_and_size':
-            pass
-        else:
-            raise Exception("Unknown sort: " + repr(sortby_str))
+        elif sortby_str != 'label_and_size':
+            raise Exception(f"Unknown sort: {repr(sortby_str)}")
 
         self.neg_list = \
-            [nt for nt in self.candidateInfo_list if not nt.isNodule_bool]
+                [nt for nt in self.candidateInfo_list if not nt.isNodule_bool]
         self.pos_list = \
-            [nt for nt in self.candidateInfo_list if nt.isNodule_bool]
+                [nt for nt in self.candidateInfo_list if nt.isNodule_bool]
         self.ben_list = \
-            [nt for nt in self.pos_list if not nt.isMal_bool]
+                [nt for nt in self.pos_list if not nt.isMal_bool]
         self.mal_list = \
-            [nt for nt in self.pos_list if nt.isMal_bool]
+                [nt for nt in self.pos_list if nt.isMal_bool]
 
-        log.info("{!r}: {} {} samples, {} neg, {} pos, {} ratio".format(
-            self,
-            len(self.candidateInfo_list),
-            "validation" if isValSet_bool else "training",
-            len(self.neg_list),
-            len(self.pos_list),
-            '{}:1'.format(self.ratio_int) if self.ratio_int else 'unbalanced'
-        ))
+        log.info(
+            "{!r}: {} {} samples, {} neg, {} pos, {} ratio".format(
+                self,
+                len(self.candidateInfo_list),
+                "validation" if isValSet_bool else "training",
+                len(self.neg_list),
+                len(self.pos_list),
+                f'{self.ratio_int}:1' if self.ratio_int else 'unbalanced',
+            )
+        )
 
     def shuffleSamples(self):
         if self.ratio_int:
@@ -293,10 +297,7 @@ class LunaDataset(Dataset):
             random.shuffle(self.mal_list)
 
     def __len__(self):
-        if self.ratio_int:
-            return 50000
-        else:
-            return len(self.candidateInfo_list)
+        return 50000 if self.ratio_int else len(self.candidateInfo_list)
 
     def __getitem__(self, ndx):
         if self.ratio_int:
@@ -358,10 +359,7 @@ class LunaDataset(Dataset):
 
 class MalignantLunaDataset(LunaDataset):
     def __len__(self):
-        if self.ratio_int:
-            return 100000
-        else:
-            return len(self.ben_list + self.mal_list)
+        return 100000 if self.ratio_int else len(self.ben_list + self.mal_list)
 
     def __getitem__(self, ndx):
         if self.ratio_int:
@@ -371,11 +369,10 @@ class MalignantLunaDataset(LunaDataset):
                 candidateInfo_tup = self.ben_list[(ndx // 4) % len(self.ben_list)]
             else:
                 candidateInfo_tup = self.neg_list[(ndx // 4) % len(self.neg_list)]
+        elif ndx >= len(self.ben_list):
+            candidateInfo_tup = self.mal_list[ndx - len(self.ben_list)]
         else:
-            if ndx >= len(self.ben_list):
-                candidateInfo_tup = self.mal_list[ndx - len(self.ben_list)]
-            else:
-                candidateInfo_tup = self.ben_list[ndx]
+            candidateInfo_tup = self.ben_list[ndx]
 
         return self.sampleFromCandidateInfo_tup(
             candidateInfo_tup, candidateInfo_tup.isMal_bool

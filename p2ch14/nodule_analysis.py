@@ -183,17 +183,14 @@ class NoduleAnalysisApp:
             'data-unversioned',
             'part2',
             'models',
-            'p2ch13',#self.cli_args.tb_prefix,
-            type_str + '_{}_{}.{}.state'.format('*', '*', 'best'),
+            'p2ch13',
+            f'{type_str}_*_*.best.state',
         )
 
         file_list = glob.glob(local_path)
         if not file_list:
             pretrained_path = os.path.join(
-                'data',
-                'part2',
-                'models',
-                type_str + '_{}_{}.{}.state'.format('*', '*', '*'),
+                'data', 'part2', 'models', f'{type_str}_*_*.*.state'
             )
             file_list = glob.glob(pretrained_path)
         else:
@@ -259,54 +256,52 @@ class NoduleAnalysisApp:
                 series_uid=series_uid,
                 fullCt_bool=True,
             )
-        seg_dl = DataLoader(
+        return DataLoader(
             seg_ds,
-            batch_size=self.cli_args.batch_size * (torch.cuda.device_count() if self.use_cuda else 1),
+            batch_size=self.cli_args.batch_size
+            * (torch.cuda.device_count() if self.use_cuda else 1),
             num_workers=self.cli_args.num_workers,
             pin_memory=self.use_cuda,
         )
-
-        return seg_dl
 
     def initClassificationDl(self, candidateInfo_list):
         cls_ds = LunaDataset(
                 sortby_str='series_uid',
                 candidateInfo_list=candidateInfo_list,
             )
-        cls_dl = DataLoader(
+        return DataLoader(
             cls_ds,
-            batch_size=self.cli_args.batch_size * (torch.cuda.device_count() if self.use_cuda else 1),
+            batch_size=self.cli_args.batch_size
+            * (torch.cuda.device_count() if self.use_cuda else 1),
             num_workers=self.cli_args.num_workers,
             pin_memory=self.use_cuda,
         )
 
-        return cls_dl
-
 
     def main(self):
-        log.info("Starting {}, {}".format(type(self).__name__, self.cli_args))
+        log.info(f"Starting {type(self).__name__}, {self.cli_args}")
 
         val_ds = LunaDataset(
             val_stride=10,
             isValSet_bool=True,
         )
-        val_set = set(
+        val_set = {
             candidateInfo_tup.series_uid
             for candidateInfo_tup in val_ds.candidateInfo_list
-        )
-        positive_set = set(
+        }
+        positive_set = {
             candidateInfo_tup.series_uid
             for candidateInfo_tup in getCandidateInfoList()
             if candidateInfo_tup.isNodule_bool
-        )
+        }
 
         if self.cli_args.series_uid:
             series_set = set(self.cli_args.series_uid.split(','))
         else:
-            series_set = set(
+            series_set = {
                 candidateInfo_tup.series_uid
                 for candidateInfo_tup in getCandidateInfoList()
-            )
+            }
 
         if self.cli_args.include_train:
             train_list = sorted(series_set - val_set)

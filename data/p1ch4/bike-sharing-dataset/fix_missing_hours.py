@@ -2,17 +2,13 @@ import copy
 import csv
 
 # instant,dteday,season,yr,mnth,hr,holiday,weekday,workingday,weathersit,temp,atemp,hum,windspeed,casual,registered,cnt
-with open('hour.csv', newline='') as hour_file, open('hour-fixed.csv', 'w', newline='') as fixed_file:
+with (open('hour.csv', newline='') as hour_file, open('hour-fixed.csv', 'w', newline='') as fixed_file):
     hour_csv = csv.reader(hour_file)
     fixed_csv = csv.writer(fixed_file)
 
     last_row = None
     for this_row in hour_csv:
-        if last_row is None:
-            pass
-        elif last_row[0] == 'instant':
-            pass
-        else:
+        if last_row is not None and last_row[0] != 'instant':
             last_hour = int(last_row[5])
             this_hour = int(this_row[5])
 

@@ -124,7 +124,7 @@ class LunaTrainingApp:
     def initModel(self):
         model = LunaModel()
         if self.use_cuda:
-            log.info("Using CUDA; {} devices.".format(torch.cuda.device_count()))
+            log.info(f"Using CUDA; {torch.cuda.device_count()} devices.")
             if torch.cuda.device_count() > 1:
                 model = nn.DataParallel(model)
             model = model.to(self.device)
@@ -146,14 +146,12 @@ class LunaTrainingApp:
         if self.use_cuda:
             batch_size *= torch.cuda.device_count()
 
-        train_dl = DataLoader(
+        return DataLoader(
             train_ds,
             batch_size=batch_size,
             num_workers=self.cli_args.num_workers,
             pin_memory=self.use_cuda,
         )
-
-        return train_dl
 
     def initValDl(self):
         val_ds = LunaDataset(
@@ -165,41 +163,36 @@ class LunaTrainingApp:
         if self.use_cuda:
             batch_size *= torch.cuda.device_count()
 
-        val_dl = DataLoader(
+        return DataLoader(
             val_ds,
             batch_size=batch_size,
             num_workers=self.cli_args.num_workers,
             pin_memory=self.use_cuda,
         )
 
-        return val_dl
-
     def initTensorboardWriters(self):
         if self.trn_writer is None:
             log_dir = os.path.join('runs', self.cli_args.tb_prefix, self.time_str)
 
             self.trn_writer = SummaryWriter(
-                log_dir=log_dir + '-trn_cls-' + self.cli_args.comment)
+                log_dir=f'{log_dir}-trn_cls-{self.cli_args.comment}'
+            )
             self.val_writer = SummaryWriter(
-                log_dir=log_dir + '-val_cls-' + self.cli_args.comment)
+                log_dir=f'{log_dir}-val_cls-{self.cli_args.comment}'
+            )
 
 
     def main(self):
-        log.info("Starting {}, {}".format(type(self).__name__, self.cli_args))
+        log.info(f"Starting {type(self).__name__}, {self.cli_args}")
 
         train_dl = self.initTrainDl()
         val_dl = self.initValDl()
 
         for epoch_ndx in range(1, self.cli_args.epochs + 1):
 
-            log.info("Epoch {} of {}, {}/{} batches of size {}*{}".format(
-                epoch_ndx,
-                self.cli_args.epochs,
-                len(train_dl),
-                len(val_dl),
-                self.cli_args.batch_size,
-                (torch.cuda.device_count() if self.use_cuda else 1),
-            ))
+            log.info(
+                f"Epoch {epoch_ndx} of {self.cli_args.epochs}, {len(train_dl)}/{len(val_dl)} batches of size {self.cli_args.batch_size}*{torch.cuda.device_count() if self.use_cuda else 1}"
+            )
 
             trnMetrics_t = self.doTraining(epoch_ndx, train_dl)
             self.logMetrics(epoch_ndx, 'trn', trnMetrics_t)
@@ -222,9 +215,7 @@ class LunaTrainingApp:
         )
 
         batch_iter = enumerateWithEstimate(
-            train_dl,
-            "E{} Training".format(epoch_ndx),
-            start_ndx=train_dl.num_workers,
+            train_dl, f"E{epoch_ndx} Training", start_ndx=train_dl.num_workers
         )
         for batch_ndx, batch_tup in batch_iter:
             self.optimizer.zero_grad()
@@ -254,9 +245,7 @@ class LunaTrainingApp:
             )
 
             batch_iter = enumerateWithEstimate(
-                val_dl,
-                "E{} Validation ".format(epoch_ndx),
-                start_ndx=val_dl.num_workers,
+                val_dl, f"E{epoch_ndx} Validation ", start_ndx=val_dl.num_workers
             )
             for batch_ndx, batch_tup in batch_iter:
                 self.computeBatchLoss(
@@ -301,10 +290,7 @@ class LunaTrainingApp:
             classificationThreshold=0.5,
     ):
         self.initTensorboardWriters()
-        log.info("E{} {}".format(
-            epoch_ndx,
-            type(self).__name__,
-        ))
+        log.info(f"E{epoch_ndx} {type(self).__name__}")
 
         negLabel_mask = metrics_t[METRICS_LABEL_NDX] <= classificationThreshold
         negPred_mask = metrics_t[METRICS_PRED_NDX] <= classificationThreshold
@@ -321,8 +307,7 @@ class LunaTrainingApp:
         falsePos_count = neg_count - neg_correct
         falseNeg_count = pos_count - pos_correct
 
-        metrics_dict = {}
-        metrics_dict['loss/all'] = metrics_t[METRICS_LOSS_NDX].mean()
+        metrics_dict = {'loss/all': metrics_t[METRICS_LOSS_NDX].mean()}
         metrics_dict['loss/neg'] = metrics_t[METRICS_LOSS_NDX, negLabel_mask].mean()
         metrics_dict['loss/pos'] = metrics_t[METRICS_LOSS_NDX, posLabel_mask].mean()
 
@@ -331,12 +316,12 @@ class LunaTrainingApp:
         metrics_dict['correct/pos'] = (pos_correct) / pos_count * 100
 
         precision = metrics_dict['pr/precision'] = \
-            truePos_count / np.float32(truePos_count + falsePos_count)
+                truePos_count / np.float32(truePos_count + falsePos_count)
         recall    = metrics_dict['pr/recall'] = \
-            truePos_count / np.float32(truePos_count + falseNeg_count)
+                truePos_count / np.float32(truePos_count + falseNeg_count)
 
         metrics_dict['pr/f1_score'] = \
-            2 * (precision * recall) / (precision + recall)
+                2 * (precision * recall) / (precision + recall)
 
         log.info(
             ("E{} {:8} {loss/all:.4f} loss, "
@@ -351,28 +336,30 @@ class LunaTrainingApp:
             )
         )
         log.info(
-            ("E{} {:8} {loss/neg:.4f} loss, "
-                 + "{correct/neg:-5.1f}% correct ({neg_correct:} of {neg_count:})"
+            (
+                "E{} {:8} {loss/neg:.4f} loss, "
+                + "{correct/neg:-5.1f}% correct ({neg_correct:} of {neg_count:})"
             ).format(
                 epoch_ndx,
-                mode_str + '_neg',
+                f'{mode_str}_neg',
                 neg_correct=neg_correct,
                 neg_count=neg_count,
                 **metrics_dict,
             )
         )
         log.info(
-            ("E{} {:8} {loss/pos:.4f} loss, "
-                 + "{correct/pos:-5.1f}% correct ({pos_correct:} of {pos_count:})"
+            (
+                "E{} {:8} {loss/pos:.4f} loss, "
+                + "{correct/pos:-5.1f}% correct ({pos_correct:} of {pos_count:})"
             ).format(
                 epoch_ndx,
-                mode_str + '_pos',
+                f'{mode_str}_pos',
                 pos_correct=pos_correct,
                 pos_count=pos_count,
                 **metrics_dict,
             )
         )
-        writer = getattr(self, mode_str + '_writer')
+        writer = getattr(self, f'{mode_str}_writer')
 
         for key, value in metrics_dict.items():
             writer.add_scalar(key, value, self.totalTrainingSamples_count)

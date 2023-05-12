@@ -19,8 +19,7 @@ def run_inference(in_tensor):
         # LunaModel takes a batch and outputs a tuple (scores, probs)
         out_tensor = model(in_tensor.unsqueeze(0))[1].squeeze(0)
     probs = out_tensor.tolist()
-    out = {'prob_malignant': probs[1]}
-    return out
+    return {'prob_malignant': probs[1]}
 
 @app.route("/predict", methods=["POST"])
 def predict():

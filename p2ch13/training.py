@@ -144,7 +144,7 @@ class SegmentationTrainingApp:
         augmentation_model = SegmentationAugmentation(**self.augmentation_dict)
 
         if self.use_cuda:
-            log.info("Using CUDA; {} devices.".format(torch.cuda.device_count()))
+            log.info(f"Using CUDA; {torch.cuda.device_count()} devices.")
             if torch.cuda.device_count() > 1:
                 segmentation_model = nn.DataParallel(segmentation_model)
                 augmentation_model = nn.DataParallel(augmentation_model)
@@ -169,14 +169,12 @@ class SegmentationTrainingApp:
         if self.use_cuda:
             batch_size *= torch.cuda.device_count()
 
-        train_dl = DataLoader(
+        return DataLoader(
             train_ds,
             batch_size=batch_size,
             num_workers=self.cli_args.num_workers,
             pin_memory=self.use_cuda,
         )
-
-        return train_dl
 
     def initValDl(self):
         val_ds = Luna2dSegmentationDataset(
@@ -189,26 +187,26 @@ class SegmentationTrainingApp:
         if self.use_cuda:
             batch_size *= torch.cuda.device_count()
 
-        val_dl = DataLoader(
+        return DataLoader(
             val_ds,
             batch_size=batch_size,
             num_workers=self.cli_args.num_workers,
             pin_memory=self.use_cuda,
         )
 
-        return val_dl
-
     def initTensorboardWriters(self):
         if self.trn_writer is None:
             log_dir = os.path.join('runs', self.cli_args.tb_prefix, self.time_str)
 
             self.trn_writer = SummaryWriter(
-                log_dir=log_dir + '_trn_seg_' + self.cli_args.comment)
+                log_dir=f'{log_dir}_trn_seg_{self.cli_args.comment}'
+            )
             self.val_writer = SummaryWriter(
-                log_dir=log_dir + '_val_seg_' + self.cli_args.comment)
+                log_dir=f'{log_dir}_val_seg_{self.cli_args.comment}'
+            )
 
     def main(self):
-        log.info("Starting {}, {}".format(type(self).__name__, self.cli_args))
+        log.info(f"Starting {type(self).__name__}, {self.cli_args}")
 
         train_dl = self.initTrainDl()
         val_dl = self.initValDl()
@@ -216,14 +214,9 @@ class SegmentationTrainingApp:
         best_score = 0.0
         self.validation_cadence = 5
         for epoch_ndx in range(1, self.cli_args.epochs + 1):
-            log.info("Epoch {} of {}, {}/{} batches of size {}*{}".format(
-                epoch_ndx,
-                self.cli_args.epochs,
-                len(train_dl),
-                len(val_dl),
-                self.cli_args.batch_size,
-                (torch.cuda.device_count() if self.use_cuda else 1),
-            ))
+            log.info(
+                f"Epoch {epoch_ndx} of {self.cli_args.epochs}, {len(train_dl)}/{len(val_dl)} batches of size {self.cli_args.batch_size}*{torch.cuda.device_count() if self.use_cuda else 1}"
+            )
 
             trnMetrics_t = self.doTraining(epoch_ndx, train_dl)
             self.logMetrics(epoch_ndx, 'trn', trnMetrics_t)
@@ -248,9 +241,7 @@ class SegmentationTrainingApp:
         train_dl.dataset.shuffleSamples()
 
         batch_iter = enumerateWithEstimate(
-            train_dl,
-            "E{} Training".format(epoch_ndx),
-            start_ndx=train_dl.num_workers,
+            train_dl, f"E{epoch_ndx} Training", start_ndx=train_dl.num_workers
         )
         for batch_ndx, batch_tup in batch_iter:
             self.optimizer.zero_grad()
@@ -270,9 +261,7 @@ class SegmentationTrainingApp:
             self.segmentation_model.eval()
 
             batch_iter = enumerateWithEstimate(
-                val_dl,
-                "E{} Validation ".format(epoch_ndx),
-                start_ndx=val_dl.num_workers,
+                val_dl, f"E{epoch_ndx} Validation ", start_ndx=val_dl.num_workers
             )
             for batch_ndx, batch_tup in batch_iter:
                 self.computeBatchLoss(batch_ndx, batch_tup, val_dl.batch_size, valMetrics_g)
@@ -358,7 +347,7 @@ class SegmentationTrainingApp:
                 image_a *= 0.5
                 image_a.clip(0, 1, image_a)
 
-                writer = getattr(self, mode_str + '_writer')
+                writer = getattr(self, f'{mode_str}_writer')
                 writer.add_image(
                     f'{mode_str}/{series_ndx}_prediction_{slice_ndx}',
                     image_a,
@@ -377,11 +366,7 @@ class SegmentationTrainingApp:
                     image_a[image_a < 0] = 0
                     image_a[image_a > 1] = 1
                     writer.add_image(
-                        '{}/{}_label_{}'.format(
-                            mode_str,
-                            series_ndx,
-                            slice_ndx,
-                        ),
+                        f'{mode_str}/{series_ndx}_label_{slice_ndx}',
                         image_a,
                         self.totalTrainingSamples_count,
                         dataformats='HWC',
@@ -391,10 +376,7 @@ class SegmentationTrainingApp:
                 writer.flush()
 
     def logMetrics(self, epoch_ndx, mode_str, metrics_t):
-        log.info("E{} {}".format(
-            epoch_ndx,
-            type(self).__name__,
-        ))
+        log.info(f"E{epoch_ndx} {type(self).__name__}")
 
         metrics_a = metrics_t.detach().numpy()
         sum_a = metrics_a.sum(axis=1)
@@ -402,24 +384,22 @@ class SegmentationTrainingApp:
 
         allLabel_count = sum_a[METRICS_TP_NDX] + sum_a[METRICS_FN_NDX]
 
-        metrics_dict = {}
-        metrics_dict['loss/all'] = metrics_a[METRICS_LOSS_NDX].mean()
-
+        metrics_dict = {'loss/all': metrics_a[METRICS_LOSS_NDX].mean()}
         metrics_dict['percent_all/tp'] = \
-            sum_a[METRICS_TP_NDX] / (allLabel_count or 1) * 100
+                sum_a[METRICS_TP_NDX] / (allLabel_count or 1) * 100
         metrics_dict['percent_all/fn'] = \
-            sum_a[METRICS_FN_NDX] / (allLabel_count or 1) * 100
+                sum_a[METRICS_FN_NDX] / (allLabel_count or 1) * 100
         metrics_dict['percent_all/fp'] = \
-            sum_a[METRICS_FP_NDX] / (allLabel_count or 1) * 100
+                sum_a[METRICS_FP_NDX] / (allLabel_count or 1) * 100
 
 
         precision = metrics_dict['pr/precision'] = sum_a[METRICS_TP_NDX] \
-            / ((sum_a[METRICS_TP_NDX] + sum_a[METRICS_FP_NDX]) or 1)
+                / ((sum_a[METRICS_TP_NDX] + sum_a[METRICS_FP_NDX]) or 1)
         recall    = metrics_dict['pr/recall']    = sum_a[METRICS_TP_NDX] \
-            / ((sum_a[METRICS_TP_NDX] + sum_a[METRICS_FN_NDX]) or 1)
+                / ((sum_a[METRICS_TP_NDX] + sum_a[METRICS_FN_NDX]) or 1)
 
         metrics_dict['pr/f1_score'] = 2 * (precision * recall) \
-            / ((precision + recall) or 1)
+                / ((precision + recall) or 1)
 
         log.info(("E{} {:8} "
                  + "{loss/all:.4f} loss, "
@@ -431,17 +411,16 @@ class SegmentationTrainingApp:
             mode_str,
             **metrics_dict,
         ))
-        log.info(("E{} {:8} "
-                  + "{loss/all:.4f} loss, "
-                  + "{percent_all/tp:-5.1f}% tp, {percent_all/fn:-5.1f}% fn, {percent_all/fp:-9.1f}% fp"
-        ).format(
-            epoch_ndx,
-            mode_str + '_all',
-            **metrics_dict,
-        ))
+        log.info(
+            (
+                "E{} {:8} "
+                + "{loss/all:.4f} loss, "
+                + "{percent_all/tp:-5.1f}% tp, {percent_all/fn:-5.1f}% fn, {percent_all/fp:-9.1f}% fp"
+            ).format(epoch_ndx, f'{mode_str}_all', **metrics_dict)
+        )
 
         self.initTensorboardWriters()
-        writer = getattr(self, mode_str + '_writer')
+        writer = getattr(self, f'{mode_str}_writer')
 
         prefix_str = 'seg_'
 
@@ -450,9 +429,7 @@ class SegmentationTrainingApp:
 
         writer.flush()
 
-        score = metrics_dict['pr/recall']
-
-        return score
+        return metrics_dict['pr/recall']
 
     # def logModelMetrics(self, model):
     #     writer = getattr(self, 'trn_writer')
@@ -483,12 +460,7 @@ class SegmentationTrainingApp:
             'part2',
             'models',
             self.cli_args.tb_prefix,
-            '{}_{}_{}.{}.state'.format(
-                type_str,
-                self.time_str,
-                self.cli_args.comment,
-                self.totalTrainingSamples_count,
-            )
+            f'{type_str}_{self.time_str}_{self.cli_args.comment}.{self.totalTrainingSamples_count}.state',
         )
 
         os.makedirs(os.path.dirname(file_path), mode=0o755, exist_ok=True)
@@ -509,7 +481,7 @@ class SegmentationTrainingApp:
         }
         torch.save(state, file_path)
 
-        log.info("Saved model params to {}".format(file_path))
+        log.info(f"Saved model params to {file_path}")
 
         if isBest:
             best_path = os.path.join(
@@ -518,10 +490,10 @@ class SegmentationTrainingApp:
                 f'{type_str}_{self.time_str}_{self.cli_args.comment}.best.state')
             shutil.copyfile(file_path, best_path)
 
-            log.info("Saved model params to {}".format(best_path))
+            log.info(f"Saved model params to {best_path}")
 
         with open(file_path, 'rb') as f:
-            log.info("SHA1: " + hashlib.sha1(f.read()).hexdigest())
+            log.info(f"SHA1: {hashlib.sha1(f.read()).hexdigest()}")
 
 
 if __name__ == '__main__':

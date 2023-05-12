@@ -67,8 +67,7 @@ class GzipDisk(Disk):
             read_csio = BytesIO()
 
             while True:
-                uncompressed_data = gz_file.read(2**30)
-                if uncompressed_data:
+                if uncompressed_data := gz_file.read(2**30):
                     read_csio.write(uncompressed_data)
                 else:
                     break
@@ -78,13 +77,13 @@ class GzipDisk(Disk):
         return value
 
 def getCache(scope_str):
-    return FanoutCache('data-unversioned/cache/' + scope_str,
-                       disk=GzipDisk,
-                       shards=64,
-                       timeout=1,
-                       size_limit=3e11,
-                       # disk_min_file_size=2**20,
-                       )
+    return FanoutCache(
+        f'data-unversioned/cache/{scope_str}',
+        disk=GzipDisk,
+        shards=64,
+        timeout=1,
+        size_limit=3e11,
+    )
 
 # def disk_cache(base_path, memsize=2):
 #     def disk_cache_decorator(f):

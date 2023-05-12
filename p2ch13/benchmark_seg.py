@@ -30,7 +30,6 @@ class BenchmarkLuna2dSegmentationDataset(TrainingLuna2dSegmentationDataset):
     def __len__(self):
         # return 500
         return 5000
-        return 1000
 
 class LunaBenchmarkApp(LunaTrainingApp):
     def initTrainDl(self):
@@ -45,29 +44,22 @@ class LunaBenchmarkApp(LunaTrainingApp):
         if self.use_cuda:
             batch_size *= torch.cuda.device_count()
 
-        train_dl = DataLoader(
+        return DataLoader(
             train_ds,
             batch_size=batch_size,
             num_workers=self.cli_args.num_workers,
             pin_memory=self.use_cuda,
         )
 
-        return train_dl
-
     def main(self):
-        log.info("Starting {}, {}".format(type(self).__name__, self.cli_args))
+        log.info(f"Starting {type(self).__name__}, {self.cli_args}")
 
         train_dl = self.initTrainDl()
 
         for epoch_ndx in range(1, 2):
-            log.info("Epoch {} of {}, {}/{} batches of size {}*{}".format(
-                epoch_ndx,
-                self.cli_args.epochs,
-                len(train_dl),
-                len([]),
-                self.cli_args.batch_size,
-                (torch.cuda.device_count() if self.use_cuda else 1),
-            ))
+            log.info(
+                f"Epoch {epoch_ndx} of {self.cli_args.epochs}, {len(train_dl)}/{len([])} batches of size {self.cli_args.batch_size}*{torch.cuda.device_count() if self.use_cuda else 1}"
+            )
 
             self.doTraining(epoch_ndx, train_dl)
 

@@ -42,7 +42,7 @@ def getCandidateInfoList(requireOnDisk_bool=True):
     with open('data/part2/luna/annotations.csv', "r") as f:
         for row in list(csv.reader(f))[1:]:
             series_uid = row[0]
-            annotationCenter_xyz = tuple([float(x) for x in row[1:4]])
+            annotationCenter_xyz = tuple(float(x) for x in row[1:4])
             annotationDiameter_mm = float(row[4])
 
             diameter_dict.setdefault(series_uid, []).append(
@@ -58,7 +58,7 @@ def getCandidateInfoList(requireOnDisk_bool=True):
                 continue
 
             isNodule_bool = bool(int(row[4]))
-            candidateCenter_xyz = tuple([float(x) for x in row[1:4]])
+            candidateCenter_xyz = tuple(float(x) for x in row[1:4])
 
             candidateDiameter_mm = 0.0
             for annotation_tup in diameter_dict.get(series_uid, []):
@@ -84,7 +84,7 @@ def getCandidateInfoList(requireOnDisk_bool=True):
 class Ct:
     def __init__(self, series_uid):
         mhd_path = glob.glob(
-            'data-unversioned/part2/luna/subset*/{}.mhd'.format(series_uid)
+            f'data-unversioned/part2/luna/subset*/{series_uid}.mhd'
         )[0]
 
         ct_mhd = sitk.ReadImage(mhd_path)
@@ -174,10 +174,8 @@ class LunaDataset(Dataset):
             random.shuffle(self.candidateInfo_list)
         elif sortby_str == 'series_uid':
             self.candidateInfo_list.sort(key=lambda x: (x.series_uid, x.center_xyz))
-        elif sortby_str == 'label_and_size':
-            pass
-        else:
-            raise Exception("Unknown sort: " + repr(sortby_str))
+        elif sortby_str != 'label_and_size':
+            raise Exception(f"Unknown sort: {repr(sortby_str)}")
 
         log.info("{!r}: {} {} samples".format(
             self,

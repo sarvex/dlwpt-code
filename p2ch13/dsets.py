@@ -44,7 +44,7 @@ def getCandidateInfoList(requireOnDisk_bool=True):
     with open('data/part2/luna/annotations_with_malignancy.csv', "r") as f:
         for row in list(csv.reader(f))[1:]:
             series_uid = row[0]
-            annotationCenter_xyz = tuple([float(x) for x in row[1:4]])
+            annotationCenter_xyz = tuple(float(x) for x in row[1:4])
             annotationDiameter_mm = float(row[4])
             isMal_bool = {'False': False, 'True': True}[row[5]]
 
@@ -67,7 +67,7 @@ def getCandidateInfoList(requireOnDisk_bool=True):
                 continue
 
             isNodule_bool = bool(int(row[4]))
-            candidateCenter_xyz = tuple([float(x) for x in row[1:4]])
+            candidateCenter_xyz = tuple(float(x) for x in row[1:4])
 
             if not isNodule_bool:
                 candidateInfo_list.append(
@@ -98,7 +98,7 @@ def getCandidateInfoDict(requireOnDisk_bool=True):
 class Ct:
     def __init__(self, series_uid):
         mhd_path = glob.glob(
-            'data-unversioned/part2/luna/subset*/{}.mhd'.format(series_uid)
+            f'data-unversioned/part2/luna/subset*/{series_uid}.mhd'
         )[0]
 
         ct_mhd = sitk.ReadImage(mhd_path)
@@ -141,7 +141,7 @@ class Ct:
             index_radius = 2
             try:
                 while self.hu_a[ci + index_radius, cr, cc] > threshold_hu and \
-                        self.hu_a[ci - index_radius, cr, cc] > threshold_hu:
+                            self.hu_a[ci - index_radius, cr, cc] > threshold_hu:
                     index_radius += 1
             except IndexError:
                 index_radius -= 1
@@ -149,7 +149,7 @@ class Ct:
             row_radius = 2
             try:
                 while self.hu_a[ci, cr + row_radius, cc] > threshold_hu and \
-                        self.hu_a[ci, cr - row_radius, cc] > threshold_hu:
+                            self.hu_a[ci, cr - row_radius, cc] > threshold_hu:
                     row_radius += 1
             except IndexError:
                 row_radius -= 1
@@ -157,7 +157,7 @@ class Ct:
             col_radius = 2
             try:
                 while self.hu_a[ci, cr, cc + col_radius] > threshold_hu and \
-                        self.hu_a[ci, cr, cc - col_radius] > threshold_hu:
+                            self.hu_a[ci, cr, cc - col_radius] > threshold_hu:
                     col_radius += 1
             except IndexError:
                 col_radius -= 1
@@ -171,9 +171,7 @@ class Ct:
                  cr - row_radius: cr + row_radius + 1,
                  cc - col_radius: cc + col_radius + 1] = True
 
-        mask_a = boundingBox_a & (self.hu_a > threshold_hu)
-
-        return mask_a
+        return boundingBox_a & (self.hu_a > threshold_hu)
 
     def getRawCandidate(self, center_xyz, width_irc):
         center_irc = xyz2irc(center_xyz, self.origin_xyz, self.vxSize_xyz,

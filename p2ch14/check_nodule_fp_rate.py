@@ -104,10 +104,7 @@ class FalsePosRateCheckApp:
         # file_list = glob.glob(local_path)
         # if not file_list:
         pretrained_path = os.path.join(
-            'data',
-            'part2',
-            'models',
-            type_str + '_{}_{}.{}.state'.format('*', '*', '*'),
+            'data', 'part2', 'models', f'{type_str}_*_*.*.state'
         )
         file_list = glob.glob(pretrained_path)
         # else:
@@ -172,54 +169,52 @@ class FalsePosRateCheckApp:
                 series_uid=series_uid,
                 fullCt_bool=True,
             )
-        seg_dl = DataLoader(
+        return DataLoader(
             seg_ds,
-            batch_size=self.cli_args.batch_size * (torch.cuda.device_count() if self.use_cuda else 1),
-            num_workers=1, #self.cli_args.num_workers,
+            batch_size=self.cli_args.batch_size
+            * (torch.cuda.device_count() if self.use_cuda else 1),
+            num_workers=1,  # self.cli_args.num_workers,
             pin_memory=self.use_cuda,
         )
-
-        return seg_dl
 
     def initClassificationDl(self, candidateInfo_list):
         cls_ds = LunaDataset(
                 sortby_str='series_uid',
                 candidateInfo_list=candidateInfo_list,
             )
-        cls_dl = DataLoader(
+        return DataLoader(
             cls_ds,
-            batch_size=self.cli_args.batch_size * (torch.cuda.device_count() if self.use_cuda else 1),
-            num_workers=1, #self.cli_args.num_workers,
+            batch_size=self.cli_args.batch_size
+            * (torch.cuda.device_count() if self.use_cuda else 1),
+            num_workers=1,  # self.cli_args.num_workers,
             pin_memory=self.use_cuda,
         )
 
-        return cls_dl
-
 
     def main(self):
-        log.info("Starting {}, {}".format(type(self).__name__, self.cli_args))
+        log.info(f"Starting {type(self).__name__}, {self.cli_args}")
 
         val_ds = LunaDataset(
             val_stride=10,
             isValSet_bool=True,
         )
-        val_set = set(
+        val_set = {
             candidateInfo_tup.series_uid
             for candidateInfo_tup in val_ds.candidateInfo_list
-        )
-        positive_set = set(
+        }
+        positive_set = {
             candidateInfo_tup.series_uid
             for candidateInfo_tup in getCandidateInfoList()
             if candidateInfo_tup.isNodule_bool
-        )
+        }
 
         if self.cli_args.series_uid:
             series_set = set(self.cli_args.series_uid.split(','))
         else:
-            series_set = set(
+            series_set = {
                 candidateInfo_tup.series_uid
                 for candidateInfo_tup in getCandidateInfoList()
-            )
+            }
 
         train_list = sorted(series_set - val_set) if self.cli_args.include_train else []
         val_list = sorted(series_set & val_set)
@@ -305,7 +300,9 @@ class FalsePosRateCheckApp:
                     found_cit_list[result_ndx] = candidateInfo_tup
 
                 else:
-                    log.warning("!!! Missed positive {}; {} min dist !!!".format(candidateInfo_tup, min_dist))
+                    log.warning(
+                        f"!!! Missed positive {candidateInfo_tup}; {min_dist} min dist !!!"
+                    )
                     missed_pos += 1
                     missed_pos_dist_list.append(float(min_dist[0]))
                     missed_pos_cit_list.append(candidateInfo_tup)
@@ -339,7 +336,9 @@ class FalsePosRateCheckApp:
             #             tn += 1
 
 
-            log.info("{}: {} missed pos, {} fn, {} fp, {} tp, {} tn".format(series_uid, missed_pos, fn, fp, tp, tn))
+            log.info(
+                f"{series_uid}: {missed_pos} missed pos, {fn} fn, {fp} fp, {tp} tp, {tn} tn"
+            )
             total_tp += tp
             total_tn += tn
             total_fp += fp
@@ -352,11 +351,13 @@ class FalsePosRateCheckApp:
         with open(self.cli_args.classification_path, 'rb') as f:
             log.info(self.cli_args.classification_path)
             log.info(hashlib.sha1(f.read()).hexdigest())
-        log.info("{}: {} missed pos, {} fn, {} fp, {} tp, {} tn".format('total', total_missed_pos, total_fn, total_fp, total_tp, total_tn))
+        log.info(
+            f"total: {total_missed_pos} missed pos, {total_fn} fn, {total_fp} fp, {total_tp} tp, {total_tn} tn"
+        )
         # missed_pos_dist_list.sort()
         # log.info("missed_pos_dist_list {}".format(missed_pos_dist_list))
         for cit, dist in zip(missed_pos_cit_list, missed_pos_dist_list):
-            log.info("    Missed by {}: {}".format(dist, cit))
+            log.info(f"    Missed by {dist}: {cit}")
 
 
     def segmentCt(self, series_uid):

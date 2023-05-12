@@ -52,40 +52,40 @@ def showCandidate(series_uid, batch_ndx=None, **kwargs):
     ]
 
     subplot = fig.add_subplot(len(group_list) + 2, 3, 1)
-    subplot.set_title('index {}'.format(int(center_irc.index)), fontsize=30)
+    subplot.set_title(f'index {int(center_irc.index)}', fontsize=30)
     for label in (subplot.get_xticklabels() + subplot.get_yticklabels()):
         label.set_fontsize(20)
     plt.imshow(ct.hu_a[int(center_irc.index)], clim=clim, cmap='gray')
 
     subplot = fig.add_subplot(len(group_list) + 2, 3, 2)
-    subplot.set_title('row {}'.format(int(center_irc.row)), fontsize=30)
+    subplot.set_title(f'row {int(center_irc.row)}', fontsize=30)
     for label in (subplot.get_xticklabels() + subplot.get_yticklabels()):
         label.set_fontsize(20)
     plt.imshow(ct.hu_a[:,int(center_irc.row)], clim=clim, cmap='gray')
     plt.gca().invert_yaxis()
 
     subplot = fig.add_subplot(len(group_list) + 2, 3, 3)
-    subplot.set_title('col {}'.format(int(center_irc.col)), fontsize=30)
+    subplot.set_title(f'col {int(center_irc.col)}', fontsize=30)
     for label in (subplot.get_xticklabels() + subplot.get_yticklabels()):
         label.set_fontsize(20)
     plt.imshow(ct.hu_a[:,:,int(center_irc.col)], clim=clim, cmap='gray')
     plt.gca().invert_yaxis()
 
     subplot = fig.add_subplot(len(group_list) + 2, 3, 4)
-    subplot.set_title('index {}'.format(int(center_irc.index)), fontsize=30)
+    subplot.set_title(f'index {int(center_irc.index)}', fontsize=30)
     for label in (subplot.get_xticklabels() + subplot.get_yticklabels()):
         label.set_fontsize(20)
     plt.imshow(ct_a[ct_a.shape[0]//2], clim=clim, cmap='gray')
 
     subplot = fig.add_subplot(len(group_list) + 2, 3, 5)
-    subplot.set_title('row {}'.format(int(center_irc.row)), fontsize=30)
+    subplot.set_title(f'row {int(center_irc.row)}', fontsize=30)
     for label in (subplot.get_xticklabels() + subplot.get_yticklabels()):
         label.set_fontsize(20)
     plt.imshow(ct_a[:,ct_a.shape[1]//2], clim=clim, cmap='gray')
     plt.gca().invert_yaxis()
 
     subplot = fig.add_subplot(len(group_list) + 2, 3, 6)
-    subplot.set_title('col {}'.format(int(center_irc.col)), fontsize=30)
+    subplot.set_title(f'col {int(center_irc.col)}', fontsize=30)
     for label in (subplot.get_xticklabels() + subplot.get_yticklabels()):
         label.set_fontsize(20)
     plt.imshow(ct_a[:,:,ct_a.shape[2]//2], clim=clim, cmap='gray')
@@ -94,7 +94,7 @@ def showCandidate(series_uid, batch_ndx=None, **kwargs):
     for row, index_list in enumerate(group_list):
         for col, index in enumerate(index_list):
             subplot = fig.add_subplot(len(group_list) + 2, 3, row * 3 + col + 7)
-            subplot.set_title('slice {}'.format(index), fontsize=30)
+            subplot.set_title(f'slice {index}', fontsize=30)
             for label in (subplot.get_xticklabels() + subplot.get_yticklabels()):
                 label.set_fontsize(20)
             plt.imshow(ct_a[index], clim=clim, cmap='gray')
@@ -112,6 +112,4 @@ def build2dLungMask(series_uid, center_ndx):
     input_g = ct_g / 1000
 
     label_g, neg_g, pos_g, lung_mask, mask_dict = mask_model(input_g, pos_g)
-    mask_tup = MaskTuple(**mask_dict)
-
-    return mask_tup
+    return MaskTuple(**mask_dict)

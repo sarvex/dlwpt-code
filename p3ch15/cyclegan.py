@@ -26,8 +26,7 @@ class ResNetBlock(nn.Module):
         return nn.Sequential(*conv_block)
 
     def forward(self, x):
-        out = x + self.conv_block(x)
-        return out
+        return x + self.conv_block(x)
 
 class ResNetGenerator(nn.Module):
     def __init__(self, input_nc=3, output_nc=3, ngf=64, n_blocks=9):
@@ -81,14 +80,14 @@ def get_pretrained_model(model_path, map_location=None):
     model_data = torch.load(model_path, map_location=map_location)
     netG.load_state_dict(model_data)
     netG.eval()
-    for p in netG.parameters():
+    for _ in netG.parameters():
         netG.requires_grad_(False)
     return netG
 
 if __name__ == '__main__':
     import sys
     if len(sys.argv) < 3:
-        print("Call as {} zebra_weights.pt traced_zebra_model.pt".format(sys.argv[0]))
+        print(f"Call as {sys.argv[0]} zebra_weights.pt traced_zebra_model.pt")
         sys.exit(1)
     model = get_pretrained_model(sys.argv[1], map_location='cpu')
     traced_model = torch.jit.trace(model, torch.randn(1, 3, 227, 227))

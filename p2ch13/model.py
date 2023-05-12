@@ -50,8 +50,7 @@ class UNetWrapper(nn.Module):
     def forward(self, input_batch):
         bn_output = self.input_batchnorm(input_batch)
         un_output = self.unet(bn_output)
-        fn_output = self.final(un_output)
-        return fn_output
+        return self.final(un_output)
 
 class SegmentationAugmentation(nn.Module):
     def __init__(
@@ -91,9 +90,8 @@ class SegmentationAugmentation(nn.Module):
         transform_t = torch.eye(3)
 
         for i in range(2):
-            if self.flip:
-                if random.random() > 0.5:
-                    transform_t[i,i] *= -1
+            if self.flip and random.random() > 0.5:
+                transform_t[i,i] *= -1
 
             if self.offset:
                 offset_float = self.offset

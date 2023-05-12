@@ -59,7 +59,7 @@ class ModelRunner:
             if len(self.queue) >= MAX_QUEUE_SIZE:
                 raise HandlingError("I'm too busy", code=503)
             self.queue.append(our_task)
-            logger.debug("enqueued task. new queue size {}".format(len(self.queue)))
+            logger.debug(f"enqueued task. new queue size {len(self.queue)}")
             self.schedule_processing_if_needed()
 
         await our_task["done_event"].wait()
@@ -71,7 +71,7 @@ class ModelRunner:
     async def model_runner(self):
         self.queue_lock = asyncio.Lock(loop=app.loop)
         self.needs_processing = asyncio.Event(loop=app.loop)
-        logger.info("started model runner for {}".format(self.model_name))
+        logger.info(f"started model runner for {self.model_name}")
         while True:
             await self.needs_processing.wait()
             self.needs_processing.clear()
@@ -79,11 +79,10 @@ class ModelRunner:
                 self.needs_processing_timer.cancel()
                 self.needs_processing_timer = None
             async with self.queue_lock:
-                if self.queue:
-                    longest_wait = app.loop.time() - self.queue[0]["time"]
-                else:  # oops
-                    longest_wait = None
-                logger.debug("launching processing. queue size: {}. longest wait: {}".format(len(self.queue), longest_wait))
+                longest_wait = app.loop.time() - self.queue[0]["time"] if self.queue else None
+                logger.debug(
+                    f"launching processing. queue size: {len(self.queue)}. longest wait: {longest_wait}"
+                )
                 to_process = self.queue[:MAX_BATCH_SIZE]
                 del self.queue[:len(to_process)]
                 self.schedule_processing_if_needed()

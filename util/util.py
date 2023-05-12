@@ -51,7 +51,7 @@ def importstr(module_str, from_=None):
         try:
             return getattr(module, from_)
         except:
-            raise ImportError('{}.{}'.format(module_str, from_))
+            raise ImportError(f'{module_str}.{from_}')
     return module
 
 
@@ -216,10 +216,7 @@ def enumerateWithEstimate(
     while print_ndx < start_ndx * backoff:
         print_ndx *= backoff
 
-    log.warning("{} ----/{}, starting".format(
-        desc_str,
-        iter_len,
-    ))
+    log.warning(f"{desc_str} ----/{iter_len}, starting")
     start_ts = time.time()
     for (current_ndx, item) in enumerate(iter):
         yield (current_ndx, item)
@@ -246,11 +243,9 @@ def enumerateWithEstimate(
         if current_ndx + 1 == start_ndx:
             start_ts = time.time()
 
-    log.warning("{} ----/{}, done at {}".format(
-        desc_str,
-        iter_len,
-        str(datetime.datetime.now()).rsplit('.', 1)[0],
-    ))
+    log.warning(
+        f"{desc_str} ----/{iter_len}, done at {str(datetime.datetime.now()).rsplit('.', 1)[0]}"
+    )
 
 #
 # try:

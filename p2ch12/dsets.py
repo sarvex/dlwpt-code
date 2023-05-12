@@ -41,7 +41,7 @@ def getCandidateInfoList(requireOnDisk_bool=True):
     with open('data/part2/luna/annotations.csv', "r") as f:
         for row in list(csv.reader(f))[1:]:
             series_uid = row[0]
-            annotationCenter_xyz = tuple([float(x) for x in row[1:4]])
+            annotationCenter_xyz = tuple(float(x) for x in row[1:4])
             annotationDiameter_mm = float(row[4])
 
             diameter_dict.setdefault(series_uid, []).append(
@@ -57,7 +57,7 @@ def getCandidateInfoList(requireOnDisk_bool=True):
                 continue
 
             isNodule_bool = bool(int(row[4]))
-            candidateCenter_xyz = tuple([float(x) for x in row[1:4]])
+            candidateCenter_xyz = tuple(float(x) for x in row[1:4])
 
             candidateDiameter_mm = 0.0
             for annotation_tup in diameter_dict.get(series_uid, []):
@@ -83,7 +83,7 @@ def getCandidateInfoList(requireOnDisk_bool=True):
 class Ct:
     def __init__(self, series_uid):
         mhd_path = glob.glob(
-            'data-unversioned/part2/luna/subset*/{}.mhd'.format(series_uid)
+            f'data-unversioned/part2/luna/subset*/{series_uid}.mhd'
         )[0]
 
         ct_mhd = sitk.ReadImage(mhd_path)
@@ -163,9 +163,8 @@ def getCtAugmentedCandidate(
     # ... <1>
 
     for i in range(3):
-        if 'flip' in augmentation_dict:
-            if random.random() > 0.5:
-                transform_t[i,i] *= -1
+        if 'flip' in augmentation_dict and random.random() > 0.5:
+            transform_t[i,i] *= -1
 
         if 'offset' in augmentation_dict:
             offset_float = augmentation_dict['offset']
@@ -251,10 +250,8 @@ class LunaDataset(Dataset):
             random.shuffle(self.candidateInfo_list)
         elif sortby_str == 'series_uid':
             self.candidateInfo_list.sort(key=lambda x: (x.series_uid, x.center_xyz))
-        elif sortby_str == 'label_and_size':
-            pass
-        else:
-            raise Exception("Unknown sort: " + repr(sortby_str))
+        elif sortby_str != 'label_and_size':
+            raise Exception(f"Unknown sort: {repr(sortby_str)}")
 
         self.negative_list = [
             nt for nt in self.candidateInfo_list if not nt.isNodule_bool
@@ -263,14 +260,16 @@ class LunaDataset(Dataset):
             nt for nt in self.candidateInfo_list if nt.isNodule_bool
         ]
 
-        log.info("{!r}: {} {} samples, {} neg, {} pos, {} ratio".format(
-            self,
-            len(self.candidateInfo_list),
-            "validation" if isValSet_bool else "training",
-            len(self.negative_list),
-            len(self.pos_list),
-            '{}:1'.format(self.ratio_int) if self.ratio_int else 'unbalanced'
-        ))
+        log.info(
+            "{!r}: {} {} samples, {} neg, {} pos, {} ratio".format(
+                self,
+                len(self.candidateInfo_list),
+                "validation" if isValSet_bool else "training",
+                len(self.negative_list),
+                len(self.pos_list),
+                f'{self.ratio_int}:1' if self.ratio_int else 'unbalanced',
+            )
+        )
 
     def shuffleSamples(self):
         if self.ratio_int:
@@ -278,10 +277,7 @@ class LunaDataset(Dataset):
             random.shuffle(self.pos_list)
 
     def __len__(self):
-        if self.ratio_int:
-            return 200000
-        else:
-            return len(self.candidateInfo_list)
+        return 200000 if self.ratio_int else len(self.candidateInfo_list)
 
     def __getitem__(self, ndx):
         if self.ratio_int:
